@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="ru" data-theme="dark" data-density="cozy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOCAL CORE — консоль для Ollama</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#040c0e; --bg-2:#06171a; --surface:#08191d; --surface-2:#0c2328; --overlay:#0f2d33; --scrim:rgba(2,8,9,.72);
+  --dom:#0a3a40; --dom-2:#0f5b62; --dom-3:#14757d; --line:#15454b; --line-soft:#10333a;
+  --lime:#c9f24a; --cyan:#2fe0cf; --blue:#3d8bff; --magenta:#ff3d9a; --amber:#ffb43d; --violet:#9b6bff;
+  --ok:#3ddc84; --warn:#ffb43d; --danger:#ff4d5e; --info:#4cc9f0;
+  --text:#e8f5f2; --muted:#8fb2b0; --dim:#5f8684;
+  --accent:#c9f24a; --accent-rgb:201,242,74; --on-accent:#06170f; --accent-ink:#c9f24a;
+  --cyan-rgb:47,224,207; --blue-rgb:61,139,255; --magenta-rgb:255,61,154;
+  --r-m:12px; --r-l:18px; --r-xl:26px; --top:62px; --side:302px; --rail:340px; --msg-gap:18px; --fs:15px;
+  --shadow-1:0 2px 10px rgba(0,0,0,.35);
+  --shadow-2:0 18px 50px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(var(--accent-rgb),.06);
+  --ease:cubic-bezier(.22,1,.36,1);
+  --font-d:'Space Grotesk','Segoe UI',system-ui,sans-serif;
+  --font-b:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  --font-m:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+[data-theme="light"]{
+  --bg:#f2ece1; --bg-2:#e7e0d1; --surface:#fffbf3; --surface-2:#f6efe2; --overlay:#fffdf8; --scrim:rgba(30,26,18,.42);
+  --dom:#d8e6df; --dom-2:#a9cbc4; --dom-3:#6fa79f; --line:#d3c9b6; --line-soft:#e3dac8;
+  --text:#0d2426; --muted:#4e6a68; --dim:#7d9490;
+  --lime:#7fa300; --cyan:#0d8f84; --blue:#1f5fd0; --magenta:#c9186b; --amber:#b06f00; --violet:#6b3fd4;
+  --ok:#12855a; --warn:#a86800; --danger:#c62a3c; --info:#0d7496; --on-accent:#08170f;
+  --shadow-2:0 18px 44px -16px rgba(40,50,45,.35), 0 0 0 1px rgba(0,0,0,.05);
+}
+[data-density="compact"]{ --side:270px; --rail:318px; --msg-gap:11px; }
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--dom-2) transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:rgba(var(--accent-rgb),.05);border-radius:99px}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--dom-3),var(--dom));border:3px solid transparent;background-clip:padding-box;border-radius:99px}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:var(--fs);line-height:1.55;overflow:hidden;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.backdrop{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(120% 90% at 8% -10%, var(--bg-2) 0%, transparent 60%),radial-gradient(90% 80% at 100% 100%, rgba(var(--blue-rgb),.10) 0%, transparent 55%),var(--bg)}
+.aurora{position:absolute;inset:-25%;filter:blur(70px);opacity:.55}
+.aurora i{position:absolute;display:block;border-radius:50%;mix-blend-mode:screen}
+[data-theme="light"] .aurora{opacity:.30}
+[data-theme="light"] .aurora i{mix-blend-mode:multiply}
+.aurora i:nth-child(1){width:46vw;height:46vw;left:-6vw;top:2vw;background:radial-gradient(circle at 40% 40%,rgba(var(--accent-rgb),.34),transparent 66%);animation:drift1 34s var(--ease) infinite alternate}
+.aurora i:nth-child(2){width:52vw;height:52vw;right:-10vw;top:-14vw;background:radial-gradient(circle at 55% 45%,rgba(var(--cyan-rgb),.30),transparent 66%);animation:drift2 41s var(--ease) infinite alternate}
+.aurora i:nth-child(3){width:40vw;height:40vw;left:34vw;bottom:-16vw;background:radial-gradient(circle at 50% 50%,rgba(var(--magenta-rgb),.20),transparent 66%);animation:drift3 47s var(--ease) infinite alternate}
+@keyframes drift1{to{transform:translate3d(12vw,8vh,0) scale(1.18)}}
+@keyframes drift2{to{transform:translate3d(-10vw,12vh,0) scale(.86)}}
+@keyframes drift3{to{transform:translate3d(-14vw,-9vh,0) scale(1.22)}}
+.grain{position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E")}
+.scan{position:absolute;inset:0;opacity:.16;background:repeating-linear-gradient(180deg,rgba(255,255,255,.045) 0 1px,transparent 1px 4px)}
+[data-theme="light"] .scan{opacity:.07}
+.topbar{position:relative;z-index:30;height:var(--top);flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(100deg,rgba(10,58,64,.92),rgba(8,25,29,.86) 45%,rgba(15,45,51,.9));backdrop-filter:blur(14px) saturate(1.2);animation:drop .7s var(--ease) both}
+[data-theme="light"] .topbar{background:linear-gradient(100deg,#ffffffee,#f4ece0ee 50%,#e9f2efee)}
+@keyframes drop{from{opacity:0;transform:translateY(-100%)}}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.mark{width:34px;height:34px;flex:0 0 auto;filter:drop-shadow(0 0 10px rgba(var(--accent-rgb),.45))}
+.mark .spin{transform-origin:17px 17px;animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.brand b{font-family:var(--font-d);font-size:16px;letter-spacing:.14em;font-weight:700;white-space:nowrap}
+.brand small{display:block;font-family:var(--font-m);font-size:9.5px;letter-spacing:.26em;color:var(--dim);margin-top:-3px}
+.top-sep{width:1px;height:26px;background:var(--line);flex:0 0 auto}
+.spacer{flex:1 1 auto}
+.pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 11px;border-radius:99px;border:1px solid var(--line);background:rgba(var(--accent-rgb),.05);font-family:var(--font-m);font-size:11px;letter-spacing:.06em;color:var(--muted);white-space:nowrap;transition:.22s var(--ease)}
+button.pill:hover{border-color:var(--accent);color:var(--text);background:rgba(var(--accent-rgb),.12);transform:translateY(-1px)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.pill[data-s="online"]{color:var(--ok);border-color:rgba(61,220,132,.45);background:rgba(61,220,132,.10)}
+.pill[data-s="online"] .dot{background:var(--ok);animation:beat 1.9s infinite}
+.pill[data-s="demo"]{color:var(--warn);border-color:rgba(255,180,61,.42);background:rgba(255,180,61,.10)}
+.pill[data-s="demo"] .dot{background:var(--warn)}
+.pill[data-s="checking"] .dot{background:var(--info);animation:beat .8s infinite}
+@keyframes beat{0%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),.5)}70%{box-shadow:0 0 0 7px rgba(var(--accent-rgb),0)}100%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),0)}}
+.icon-btn{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);color:var(--muted);transition:.2s var(--ease);background:rgba(255,255,255,.02)}
+.icon-btn:hover{color:var(--text);border-color:var(--accent);background:rgba(var(--accent-rgb),.12);transform:translateY(-1px)}
+.icon-btn svg{width:17px;height:17px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 15px;border-radius:11px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font-weight:600;font-size:13.5px;transition:.2s var(--ease);white-space:nowrap}
+.btn:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 6px 18px -10px rgba(var(--accent-rgb),.7)}
+.btn svg{width:16px;height:16px}
+.btn.primary{background:linear-gradient(115deg,var(--accent),var(--cyan) 92%);color:var(--on-accent);border-color:transparent;box-shadow:0 8px 24px -12px rgba(var(--accent-rgb),.9)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.btn.sm{height:30px;padding:0 11px;font-size:12.5px;border-radius:9px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.only-mobile{display:none}
+.shell{position:relative;z-index:10;flex:1 1 auto;min-height:0;display:grid;grid-template-columns:var(--side) minmax(0,1fr) var(--rail)}
+.col{min-height:0;display:flex;flex-direction:column;position:relative}
+.sidebar{border-right:1px solid var(--line);background:linear-gradient(180deg,rgba(8,25,29,.78),rgba(4,12,14,.62));backdrop-filter:blur(10px)}
+[data-theme="light"] .sidebar{background:linear-gradient(180deg,#fffdf7d9,#f3ece0d9)}
+.rail{border-left:1px solid var(--line);background:linear-gradient(180deg,rgba(10,58,64,.42),rgba(4,12,14,.7));backdrop-filter:blur(10px)}
+[data-theme="light"] .rail{background:linear-gradient(180deg,#f7f2e6d9,#eef4f0d9)}
+.scroll{overflow-y:auto;overflow-x:hidden;min-height:0;flex:1 1 auto;overscroll-behavior:contain}
+.sec-title{display:flex;align-items:center;gap:8px;font-family:var(--font-m);font-size:10px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;margin:0 0 10px}
+.sec-title::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.side-head{padding:14px;border-bottom:1px solid var(--line-soft)}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.convos{padding:8px 8px 14px;display:flex;flex-direction:column;gap:5px}
+.conv{position:relative;display:flex;align-items:center;gap:8px;padding:10px;border-radius:var(--r-m);border:1px solid transparent;cursor:pointer;transition:.18s var(--ease);animation:rise .5s var(--ease) both;animation-delay:calc(var(--i,0)*38ms)}
+@keyframes rise{from{opacity:0;transform:translateY(9px)}}
+.conv:hover{background:rgba(var(--accent-rgb),.06);border-color:var(--line)}
+.conv.active{background:linear-gradient(100deg,rgba(var(--accent-rgb),.16),rgba(var(--cyan-rgb),.07));border-color:rgba(var(--accent-rgb),.5);box-shadow:inset 3px 0 0 var(--accent)}
+.conv-body{flex:1;min-width:0}
+.conv-title{font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv-snippet{font-size:11.5px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv-meta{display:flex;align-items:center;gap:6px;margin-top:6px;font-family:var(--font-m);font-size:9.5px;color:var(--dim);letter-spacing:.05em}
+.tag{padding:1px 6px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.tag.model{color:var(--cyan);border-color:rgba(var(--cyan-rgb),.35);background:rgba(var(--cyan-rgb),.08)}
+.del-btn{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;color:var(--dim);opacity:0;transition:.2s;flex-shrink:0}
+.conv:hover .del-btn{opacity:.6}
+.del-btn:hover{opacity:1!important;color:var(--danger);background:rgba(255,77,94,.12)}
+.del-btn svg{width:14px;height:14px}
+.side-foot{border-top:1px solid var(--line-soft);padding:10px 13px;display:flex;flex-direction:column;gap:7px;font-family:var(--font-m);font-size:10px;color:var(--dim);letter-spacing:.06em}
+.bar{height:5px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+[data-theme="light"] .bar{background:rgba(0,0,0,.08)}
+.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--cyan));transition:width .5s var(--ease)}
+.thread{background:linear-gradient(180deg,rgba(4,12,14,.30),rgba(4,12,14,.55))}
+[data-theme="light"] .thread{background:linear-gradient(180deg,#fffdf6a6,#f6f0e4a6)}
+.thread-head{flex:0 0 auto;padding:11px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(10,58,64,.35),transparent)}
+.title-wrap{min-width:0;flex:1}
+#threadTitle{font-family:var(--font-d);font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px;max-width:100%;text-align:left;color:var(--text);border-radius:8px;padding:2px 4px;margin-left:-4px;overflow:hidden}
+#threadTitle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#threadTitle:hover{background:rgba(var(--accent-rgb),.1)}
+.thread-meta{display:flex;align-items:center;gap:8px;font-family:var(--font-m);font-size:10px;color:var(--dim);letter-spacing:.07em;margin-top:2px;flex-wrap:wrap}
+.thread-actions{display:flex;gap:6px;flex:0 0 auto}
+.msgs{padding:20px 18px 8px;display:flex;flex-direction:column;gap:var(--msg-gap)}
+.msg{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;animation:rise .45s var(--ease) both}
+.avatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-family:var(--font-m);font-size:11px;font-weight:700;border:1px solid var(--line)}
+.msg.user .avatar{background:linear-gradient(140deg,var(--blue),var(--violet));color:#fff;border-color:transparent}
+.msg.assistant .avatar{background:linear-gradient(140deg,var(--dom-2),var(--dom));color:var(--accent);border-color:rgba(var(--accent-rgb),.35)}
+.msg.err .avatar{background:linear-gradient(140deg,var(--danger),#7a1020);color:#fff;border-color:transparent}
+.bubble{min-width:0;border:1px solid var(--line-soft);border-radius:var(--r-l);padding:12px 15px;background:var(--surface);box-shadow:var(--shadow-1)}
+.msg.user .bubble{background:linear-gradient(120deg,rgba(var(--blue-rgb),.14),rgba(155,107,255,.08));border-color:rgba(var(--blue-rgb),.3)}
+.msg.assistant .bubble{background:linear-gradient(150deg,var(--surface-2),var(--surface))}
+.msg.err .bubble{border-color:rgba(255,77,94,.45);background:linear-gradient(120deg,rgba(255,77,94,.12),var(--surface))}
+.msg-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-family:var(--font-m);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);flex-wrap:wrap}
+.msg-head b{color:var(--muted);font-weight:600}
+.badge{padding:1px 7px;border-radius:99px;font-size:9px;letter-spacing:.12em;border:1px solid var(--line)}
+.badge.demo{color:var(--warn);border-color:rgba(255,180,61,.4);background:rgba(255,180,61,.1)}
+.badge.live{color:var(--ok);border-color:rgba(61,220,132,.4);background:rgba(61,220,132,.1)}
+.stats{display:flex;gap:10px;font-family:var(--font-m);font-size:10px;color:var(--dim);margin-top:8px;flex-wrap:wrap}
+.stats b{color:var(--accent-ink);font-weight:600}
+.caret{display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:-2px;margin-left:2px;border-radius:2px;animation:blink .9s steps(2) infinite;box-shadow:0 0 10px rgba(var(--accent-rgb),.8)}
+@keyframes blink{50%{opacity:0}}
+.md{overflow-wrap:anywhere}
+.md>*:first-child{margin-top:0}.md>*:last-child{margin-bottom:0}
+.md p{margin:0 0 9px}
+.md h1,.md h2,.md h3,.md h4{font-family:var(--font-d);margin:14px 0 8px;line-height:1.3}
+.md h1{font-size:20px}.md h2{font-size:18px}.md h3{font-size:15.5px;color:var(--accent-ink)}.md h4{font-size:14px;color:var(--cyan)}
+.md ul,.md ol{margin:0 0 10px;padding-left:22px}.md li{margin:3px 0}.md li::marker{color:var(--accent)}
+.md blockquote{margin:0 0 10px;padding:6px 12px;border-left:3px solid var(--cyan);background:rgba(var(--cyan-rgb),.07);border-radius:0 10px 10px 0;color:var(--muted)}
+.md code.ic{font-family:var(--font-m);font-size:.86em;padding:1.5px 5px;border-radius:6px;background:rgba(var(--accent-rgb),.13);border:1px solid rgba(var(--accent-rgb),.2);color:var(--accent-ink)}
+.md table{width:100%;border-collapse:collapse;margin:0 0 11px;font-size:12.5px;display:block;overflow-x:auto}
+.md th,.md td{border:1px solid var(--line);padding:6px 9px;text-align:left}
+.md th{background:rgba(var(--accent-rgb),.1);font-family:var(--font-m);font-size:10.5px;text-transform:uppercase;color:var(--accent-ink)}
+.code{margin:0 0 11px;border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;background:#031013}
+[data-theme="light"] .code{background:#0b2126}
+.code-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px 5px 11px;background:linear-gradient(90deg,rgba(var(--accent-rgb),.13),rgba(var(--cyan-rgb),.06));border-bottom:1px solid var(--line)}
+.code-lang{font-family:var(--font-m);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#c9f24a}
+.code-copy{font-family:var(--font-m);font-size:10px;color:#8fb2b0;border:1px solid #15454b;border-radius:7px;padding:2px 8px;transition:.16s}
+.code-copy:hover{color:#06170f;background:#c9f24a;border-color:transparent}
+.code pre{margin:0;padding:11px 13px;overflow-x:auto}
+.code code{font-family:var(--font-m);font-size:12.2px;line-height:1.65;color:#dff3ef;white-space:pre}
+.t-str{color:#ffb43d}.t-com{color:#5f8684;font-style:italic}.t-num{color:#ff3d9a}.t-key{color:#2fe0cf;font-weight:600}
+.composer{flex:0 0 auto;border-top:1px solid var(--line);padding:11px 16px 13px;background:linear-gradient(180deg,rgba(8,25,29,.6),rgba(10,58,64,.42));backdrop-filter:blur(10px)}
+[data-theme="light"] .composer{background:linear-gradient(180deg,#fffdf7cc,#eef4efcc)}
+.compose-box{display:flex;align-items:flex-end;gap:9px;border:1px solid var(--line);border-radius:var(--r-l);background:rgba(0,0,0,.32);padding:8px 8px 8px 13px;transition:.2s}
+[data-theme="light"] .compose-box{background:#fff}
+.compose-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.13)}
+#input{flex:1;min-height:26px;max-height:190px;resize:none;border:0;background:none;outline:none;padding:4px 0;line-height:1.55;font-size:14.5px}
+#input::placeholder{color:var(--dim)}
+.compose-foot{display:flex;align-items:center;gap:10px;margin-top:8px;font-family:var(--font-m);font-size:10px;color:var(--dim);letter-spacing:.06em;flex-wrap:wrap}
+.compose-foot .grow{flex:1}
+.send{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(125deg,var(--accent),var(--cyan));color:var(--on-accent);transition:.2s var(--ease);box-shadow:0 8px 22px -12px rgba(var(--accent-rgb),.95);flex:0 0 auto}
+.send:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.send[disabled]{opacity:.4;pointer-events:none}
+.send.stop{background:linear-gradient(125deg,var(--danger),#ff8a5c);color:#fff}
+.send svg{width:18px;height:18px}
+.rail-head{flex:0 0 auto;padding:12px 14px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:8px}
+.rail-head b{font-family:var(--font-d);font-size:13px;letter-spacing:.16em;text-transform:uppercase}
+.rail-body{padding:14px}
+.panel{border:1px solid var(--line);border-radius:var(--r-l);padding:13px;margin-bottom:13px;background:linear-gradient(160deg,rgba(var(--accent-rgb),.045),rgba(0,0,0,.16));animation:rise .6s var(--ease) both;animation-delay:calc(var(--i)*70ms)}
+[data-theme="light"] .panel{background:linear-gradient(160deg,#ffffffb0,#f4efe3b0)}
+.ctl{margin-bottom:13px}.ctl:last-child{margin-bottom:0}
+.ctl-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:5px}
+.ctl-top label{font-size:12.3px;color:var(--muted);font-weight:500}
+.val{font-family:var(--font-m);font-size:11.5px;color:var(--accent-ink);background:rgba(var(--accent-rgb),.1);border:1px solid rgba(var(--accent-rgb),.22);border-radius:7px;padding:1px 7px;min-width:44px;text-align:center}
+.hint{font-size:10.5px;color:var(--dim);margin-top:4px;line-height:1.45}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:none;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:linear-gradient(90deg,var(--accent) 0 var(--p,50%),rgba(255,255,255,.1) var(--p,50%) 100%)}
+[data-theme="light"] input[type=range]::-webkit-slider-runnable-track{background:linear-gradient(90deg,var(--accent) 0 var(--p,50%),rgba(0,0,0,.12) var(--p,50%) 100%)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-5px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.2),0 2px 8px rgba(0,0,0,.6)}
+.field{width:100%;height:34px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.28);padding:0 10px;font-size:13px;transition:.18s}
+[data-theme="light"] .field{background:#fff}
+.field:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.13)}
+select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%238fb2b0' stroke-width='1.6'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:12px;padding-right:26px}
+textarea.field{height:auto;min-height:74px;padding:9px 10px;resize:vertical;line-height:1.5;font-size:12.5px;font-family:var(--font-b)}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.info{border:1px solid var(--line-soft);border-radius:10px;padding:7px 9px;background:rgba(0,0,0,.2)}
+[data-theme="light"] .info{background:rgba(255,255,255,.6)}
+.info b{display:block;font-family:var(--font-m);font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info span{font-family:var(--font-m);font-size:8.5px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+.scrim{position:fixed;inset:0;z-index:40;background:var(--scrim);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:.28s var(--ease)}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;z-index:50;top:0;right:0;height:100%;width:min(560px,100%);display:flex;flex-direction:column;background:linear-gradient(170deg,var(--overlay),var(--surface) 55%,var(--bg-2));border-left:1px solid var(--line);box-shadow:var(--shadow-2);transform:translateX(102%);transition:transform .4s var(--ease)}
+.drawer.on{transform:none}
+.drawer-head{flex:0 0 auto;padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;background:linear-gradient(100deg,rgba(var(--accent-rgb),.12),transparent)}
+.drawer-head h2{font-family:var(--font-d);font-size:18px;margin:0;flex:1}
+.drawer-head p{margin:2px 0 0;font-size:11.5px;color:var(--dim);font-family:var(--font-m)}
+.drawer-body{padding:18px;display:flex;flex-direction:column;gap:16px}
+.note{border:1px solid rgba(var(--cyan-rgb),.3);border-radius:var(--r-m);padding:11px 13px;background:rgba(var(--cyan-rgb),.07);font-size:12.3px;color:var(--muted);line-height:1.6}
+.note b{color:var(--cyan)}
+.note.warn{border-color:rgba(255,180,61,.35);background:rgba(255,180,61,.08)}
+.note.warn b{color:var(--warn)}
+.note code{font-family:var(--font-m);font-size:11.5px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:5px;color:var(--accent-ink)}
+[data-theme="light"] .note code{background:rgba(0,0,0,.07)}
+.progress{height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:9px}
+[data-theme="light"] .progress{background:rgba(0,0,0,.1)}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--cyan),var(--blue));transition:width .3s var(--ease)}
+.pull-status{font-family:var(--font-m);font-size:10.5px;color:var(--muted);margin-top:6px;letter-spacing:.05em;min-height:14px}
+.model-row{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-m);margin-bottom:7px;background:rgba(0,0,0,.18);transition:.18s}
+[data-theme="light"] .model-row{background:rgba(255,255,255,.55)}
+.model-row.current{border-color:var(--accent);background:rgba(var(--accent-rgb),.1)}
+.model-row .nm{font-family:var(--font-m);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.model-row .sub{font-family:var(--font-m);font-size:9.5px;color:var(--dim);letter-spacing:.08em;margin-top:2px}
+.toasts{position:fixed;z-index:80;bottom:18px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:9px;width:min(440px,calc(100% - 24px));pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--r-m);border:1px solid var(--line);background:var(--overlay);box-shadow:var(--shadow-2);animation:toastIn .34s var(--ease) both}
+@keyframes toastIn{from{opacity:0;transform:translateY(18px) scale(.96)}}
+.toast .ti{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;background:rgba(var(--accent-rgb),.16);color:var(--accent-ink)}
+.toast.ok .ti{background:rgba(61,220,132,.18);color:var(--ok)}
+.toast.err .ti{background:rgba(255,77,94,.18);color:var(--danger)}
+.toast b{display:block;font-size:13px}
+.toast span{font-size:11.5px;color:var(--muted)}
+@media (max-width:1180px){
+  .shell{grid-template-columns:var(--side) minmax(0,1fr)}
+  .rail{position:fixed;z-index:45;top:var(--top);right:0;height:calc(100% - var(--top));width:min(340px,88vw);transform:translateX(102%);transition:transform .36s var(--ease);box-shadow:var(--shadow-2)}
+  body.rail-open .rail{transform:none}
+}
+@media (max-width:900px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .sidebar{position:fixed;z-index:46;top:var(--top);left:0;height:calc(100% - var(--top));width:min(300px,86vw);transform:translateX(-102%);transition:transform .36s var(--ease);box-shadow:var(--shadow-2)}
+  body.nav-open .sidebar{transform:none}
+  .only-mobile{display:inline-flex}.hide-sm{display:none}.brand small{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.05s!important}}
+</style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"><div class="aurora"><i></i><i></i><i></i></div><div class="scan"></div><div class="grain"></div></div>
+
+<header class="topbar">
+  <button class="icon-btn only-mobile" id="btnNav" aria-label="Чаты"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+      <defs><linearGradient id="mg" x1="0" y1="0" x2="34" y2="34"><stop offset="0" stop-color="var(--accent)"/><stop offset=".55" stop-color="var(--cyan)"/><stop offset="1" stop-color="var(--blue)"/></linearGradient></defs>
+      <g class="spin"><circle cx="17" cy="17" r="14.5" stroke="url(#mg)" stroke-width="1.1" stroke-dasharray="4 6" opacity=".8"/></g>
+      <path d="M17 4.5c5 0 8.6 4 8.6 9.4 0 3.4-1.3 5.6-1.3 8.3 0 2.2.9 3.4.9 4.6 0 1.4-1.2 2.2-2.6 2.2-1.6 0-2.4-1-2.6-2.6-.2-1.6-.9-2.4-3-2.4s-2.8.8-3 2.4c-.2 1.6-1 2.6-2.6 2.6-1.4 0-2.6-.8-2.6-2.2 0-1.2.9-2.4.9-4.6 0-2.7-1.3-4.9-1.3-8.3C8.4 8.5 12 4.5 17 4.5Z" stroke="url(#mg)" stroke-width="1.6"/>
+      <circle cx="13.6" cy="13.4" r="1.5" fill="var(--accent)"/><circle cx="20.4" cy="13.4" r="1.5" fill="var(--cyan)"/>
+      <path d="M14.6 18.4c1.5 1.1 3.3 1.1 4.8 0" stroke="var(--magenta)" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>
+    <div><b>LOCAL CORE</b><small>OLLAMA CONSOLE</small></div>
+  </div>
+  <div class="top-sep hide-sm"></div>
+  <button class="pill hide-sm" id="statusPill" data-s="checking"><span class="dot"></span><span id="statusText">ПРОВЕРКА…</span></button>
+  <button class="pill hide-sm" id="modelPill"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg><span id="modelPillText">—</span></button>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="btnTheme" title="Тема"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 13.2A8.5 8.5 0 1110.8 3a7 7 0 0010.2 10.2z"/></svg></button>
+  <button class="btn primary" id="btnSetup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v6M12 15v6M4.5 7.5l4.2 2.4M15.3 14.1l4.2 2.4M4.5 16.5l4.2-2.4M15.3 9.9l4.2-2.4"/><circle cx="12" cy="12" r="3"/></svg><span class="hide-sm">Подключение</span></button>
+</header>
+
+<main class="shell">
+  <aside class="col sidebar" id="sidebar">
+    <div class="side-head"><button class="btn primary" id="btnNew" style="width:100%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Новый чат</button></div>
+    <div class="scroll"><div class="convos" id="convos" role="list"></div></div>
+    <div class="side-foot">
+      <div class="row-between"><span>ЛОКАЛЬНОЕ ХРАНИЛИЩЕ</span><span id="storeSize">0 KB</span></div>
+      <div class="bar"><i id="storeBar" style="width:4%"></i></div>
+      <div class="row-between"><span id="footMsgs">0 сообщений</span><span id="footModels">0 моделей</span></div>
+    </div>
+  </aside>
+
+  <section class="col thread">
+    <div class="thread-head">
+      <div class="title-wrap">
+        <button id="threadTitle"><span id="titleText">Новый чат</span></button>
+        <div class="thread-meta" id="threadMeta"></div>
+      </div>
+      <div class="thread-actions">
+        <button class="btn sm ghost" id="btnRegen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></svg><span>Заново</span></button>
+        <button class="btn sm ghost" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg><span>Очистить</span></button>
+      </div>
+    </div>
+    <div class="scroll" id="threadScroll"><div class="msgs" id="msgs" role="log" aria-live="polite"></div></div>
+    <div class="composer">
+      <div class="compose-box">
+        <textarea id="input" rows="1" placeholder="Спросите локальную модель… (Enter — отправить, Shift+Enter — новая строка)"></textarea>
+        <button class="send" id="send" disabled aria-label="Отправить"><svg id="sendIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l16-8-6 8 6 8-16-8z"/></svg></button>
+      </div>
+      <div class="compose-foot"><span id="tokenHint">≈ 0 токенов</span><span class="grow"></span><span id="composeState">готов</span></div>
+    </div>
+  </section>
+
+  <aside class="col rail" id="rail">
+    <div class="rail-head">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
+      <b>ПУЛЬТ</b><div class="spacer"></div>
+      <span class="pill" id="railMode" data-s="demo" style="height:26px;font-size:10px"><span class="dot"></span><span id="railModeText">DEMO</span></span>
+    </div>
+    <div class="scroll"><div class="rail-body">
+      <div class="panel" style="--i:0">
+        <p class="sec-title">Модель</p>
+        <select class="field" id="modelSelect"></select>
+        <div class="info-grid">
+          <div class="info"><span>Семейство</span><b id="mFamily">—</b></div>
+          <div class="info"><span>Параметры</span><b id="mParams">—</b></div>
+          <div class="info"><span>Квантование</span><b id="mQuant">—</b></div>
+          <div class="info"><span>На диске</span><b id="mSize">—</b></div>
+        </div>
+      </div>
+      <div class="panel" style="--i:1">
+        <p class="sec-title">Параметры генерации</p>
+        <div class="ctl"><div class="ctl-top"><label>Температура</label><span class="val" id="temperatureVal">0.70</span></div><input type="range" id="temperature" min="0" max="1.5" step="0.05"></div>
+        <div class="ctl"><div class="ctl-top"><label>Top-p (ядро)</label><span class="val" id="top_pVal">0.90</span></div><input type="range" id="top_p" min="0.05" max="1" step="0.01"></div>
+        <div class="ctl"><div class="ctl-top"><label>Лимит ответа, токенов</label><span class="val" id="num_predictVal">1024</span></div><input type="range" id="num_predict" min="128" max="4096" step="128"></div>
+        <div class="ctl"><div class="ctl-top"><label>Контекст (num_ctx)</label></div>
+          <select class="field" id="num_ctx"><option value="2048">2 048</option><option value="4096">4 096</option><option value="8192">8 192</option><option value="16384">16 384</option></select>
+        </div>
+        <div class="ctl"><div class="ctl-top"><label>Системный промпт</label></div><textarea class="field" id="system" placeholder="Роль и правила…"></textarea></div>
+      </div>
+    </div></div>
+  </aside>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="setup" role="dialog" aria-modal="true">
+  <div class="drawer-head"><div style="flex:1"><h2>Подключение к Ollama</h2><p id="setupSub">HTTP API · localhost:11434</p></div><button class="icon-btn" id="setupClose" aria-label="Закрыть">✕</button></div>
+  <div class="scroll"><div class="drawer-body">
+    <div>
+      <p class="sec-title">Адрес сервера</p>
+      <div style="display:flex;gap:8px"><input class="field" id="endpoint" style="font-family:var(--font-m);font-size:12.5px" placeholder="http://localhost:11434"><button class="btn primary" id="btnProbe">Проверить</button></div>
+      <div class="pull-status" id="probeStatus"></div>
+    </div>
+    <div class="note warn"><b>Важно про CORS.</b> Файл, открытый как <code>file://</code>, шлёт <code>Origin: null</code>. Разрешите доступ и перезапустите сервер:<br><code>OLLAMA_ORIGINS=* ollama serve</code> (Windows/Pwsh: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>)</div>
+    <div>
+      <p class="sec-title">Загрузить модель</p>
+      <div style="display:flex;gap:8px">
+        <input class="field" id="pullName" list="pullSuggest" placeholder="например qwen3:4b" style="font-family:var(--font-m);font-size:12.5px">
+        <datalist id="pullSuggest"><option>qwen3:4b</option><option>qwen3:8b</option><option>llama3.2:3b</option><option>llama3.1:8b</option><option>gemma3:4b</option><option>qwen2.5-coder:7b</option><option>phi4:14b</option></datalist>
+        <button class="btn primary" id="btnPull">Тянуть</button>
+      </div>
+      <div class="progress"><i id="pullBar"></i></div>
+      <div class="pull-status" id="pullStatus">Скачивание идёт через /api/pull со стримингом прогресса. Модель появится в списке справа.</div>
+    </div>
+    <div><p class="sec-title">Модели на машине</p><div id="modelList"></div></div>
+  </div></div>
+</aside>
+<div class="toasts" id="toasts"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2,10);
+const now = () => Date.now();
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const escAttr = s => esc(s).replace(/"/g,'&quot;');
+const fmtBytes = b => { if(!b) return '—'; const u=['B','KB','MB','GB','TB']; let i=0,n=b; while(n>=1024&&i<u.length-1){n/=1024;i++;} return n.toFixed(n<10&&i>1?1:0)+' '+u[i]; };
+const relTime = ts => { const d=(now()-ts)/1000; if(d<60)return'только что'; if(d<3600)return Math.floor(d/60)+' мин'; if(d<86400)return Math.floor(d/3600)+' ч'; if(d<172800)return'вчера'; return new Date(ts).toLocaleDateString('ru-RU',{day:'2-digit',month:'short'}); };
+const plural = (n, one, few, many) => { const m=n%100, k=n%10; if(m>10&&m<20) return many; if(k===1) return one; if(k>=2&&k<=4) return few; return many; };
+
+const LS='localcore.ollama.v2';
+const DEF_PARAMS={temperature:.7,top_p:.9,top_k:40,num_predict:1024,repeat_penalty:1.1,seed:0,num_ctx:4096,format:'',stream:true,
+  system:'Ты — локальный ассистент на компьютере пользователя через Ollama. Отвечай по-русски, кратко и по делу. Код оформляй в блоки с указанием языка.'};
+const DEF_UI={theme:'dark',density:'cozy'};
+const WELCOME = 'Привет! Я **LOCAL CORE**.\n\nЧтобы я отвечал реальной моделью, нужно одно из двух:\n\n1. **Скачать модель здесь**: кнопка «Подключение» → поле «Загрузить модель» → «Тянуть».\n2. **Или в терминале**:\n```bash\nollama pull qwen3:4b\n```\n\nПотом нажмите «Проверить» — и пишите вопрос.';
+
+function seedState(){
+  const t=now();
+  const conv={id:uid(),title:'Добро пожаловать',model:'qwen3:4b',createdAt:t,updatedAt:t,messages:[
+    {id:uid(),role:'assistant',content:WELCOME,ts:t,model:'qwen3:4b',tps:45,tokens:120,ms:2600}
+  ]};
+  return {endpoint:'http://localhost:11434',mode:'demo',model:'qwen3:4b',convos:[conv],activeId:conv.id,
+    params:Object.assign({},DEF_PARAMS),ui:Object.assign({},DEF_UI),replies:0};
+}
+let S;
+try{ const raw=localStorage.getItem(LS); if(raw){ const p=JSON.parse(raw); S=Object.assign(seedState(),p); S.params=Object.assign({},DEF_PARAMS,p.params||{}); S.ui=Object.assign({},DEF_UI,p.ui||{}); if(!Array.isArray(S.convos)||!S.convos.length) S=seedState(); } else S=seedState(); }catch(e){ S=seedState(); }
+if(!S.activeId||!S.convos.some(c=>c.id===S.activeId)) S.activeId=S.convos[0].id;
+
+let models=[], streaming=false, aborter=null, stopFlag=false, saveTimer=null, pulling=false;
+const save=()=>{ clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ try{ localStorage.setItem(LS,JSON.stringify(S)); renderFoot(); }catch(e){} },260); };
+const active=()=>S.convos.find(c=>c.id===S.activeId)||S.convos[0];
+const modelMeta=n=>models.find(m=>m.name===n)||{name:n,size:0,details:{}};
+
+function toast(kind,title,sub){
+  const el=document.createElement('div'); el.className='toast '+kind;
+  el.innerHTML=`<div class="ti">${kind==='ok'?'✓':kind==='err'?'✕':'i'}</div><div class="tt"><b>${esc(title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`;
+  $('toasts').appendChild(el); setTimeout(()=>el.remove(),5200);
+}
+
+function hl(code){
+  const s=esc(code);
+  const kw=/\b(const|let|var|function|return|if|else|for|while|import|from|class|def|async|await|try|except|new|throw|print|sudo|curl|docker|ollama|pip|brew|systemctl|cd|export|Environment|POST|GET)\b/;
+  const rx=new RegExp('("(?:[^"\\\\\\n]|\\\\.)*"|\'(?:[^\'\\\\\\n]|\\\\.)*\'|`(?:[^`\\\\]|\\\\.)*`)|(\\/\\/[^\\n]*|#[^\\n]*)|\\b(\\d+(?:\\.\\d+)?)\\b|'+kw.source,'g');
+  return s.replace(rx,(m,str,com,num,key)=>str?`<span class="t-str">${str}</span>`:com?`<span class="t-com">${com}</span>`:num?`<span class="t-num">${num}</span>`:key?`<span class="t-key">${key}</span>`:m);
+}
+function inline(t){
+  const codes=[];
+  t=t.replace(/`([^`]+)`/g,(m,c)=>{codes.push(c);return '\u0001C'+(codes.length-1)+'\u0001';});
+  t=t.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  t=t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)"'<>]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  t=t.replace(/\u0001C(\d+)\u0001/g,(m,i)=>'<code class="ic">'+codes[+i]+'</code>');
+  return t;
+}
+function md(src){
+  if(!src) return '';
+  const blocks=[]; let s=String(src).replace(/\r/g,'');
+  s=s.replace(/```([\w+#.-]*)\n?([\s\S]*?)(?:```|$)/g,(m,lang,code)=>{blocks.push({lang:lang||'text',code:code.replace(/\n$/,'')});return '\u0000B'+(blocks.length-1)+'\u0000';});
+  s=esc(s);
+  const lines=s.split('\n'), out=[]; let para=[], list=null;
+  const flushP=()=>{if(para.length){out.push('<p>'+inline(para.join('<br>'))+'</p>');para=[];}};
+  const flushL=()=>{if(list){out.push(`<${list.tag}>`+list.items.map(i=>'<li>'+inline(i)+'</li>').join('')+`</${list.tag}>`);list=null;}};
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i]; let m;
+    if((m=ln.match(/^\u0000B(\d+)\u0000\s*$/))){ flushP();flushL(); const b=blocks[+m[1]];
+      out.push('<div class="code"><div class="code-top"><span class="code-lang">'+escAttr(b.lang)+'</span><button class="code-copy" data-code="'+encodeURIComponent(b.code)+'">копировать</button></div><pre><code>'+hl(b.code)+'</code></pre></div>'); continue; }
+    if(!ln.trim()){flushP();flushL();continue;}
+    if((m=ln.match(/^(#{1,4})\s+(.*)$/))){flushP();flushL();out.push('<h'+m[1].length+'>'+inline(m[2])+'</h'+m[1].length+'>');continue;}
+    if(/^\s*\|/.test(ln)&&i+1<lines.length&&/^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i+1])){
+      flushP();flushL();
+      const cells=r=>r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+      const head=cells(ln); i++; const rows=[];
+      while(i+1<lines.length&&/^\s*\|/.test(lines[i+1])){rows.push(cells(lines[++i]));}
+      out.push('<table><thead><tr>'+head.map(h=>'<th>'+inline(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+inline(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table>'); continue;
+    }
+    if((m=ln.match(/^\s*[-*+]\s+(.*)$/))){flushP(); if(!list||list.tag!=='ul'){flushL();list={tag:'ul',items:[]};} list.items.push(m[1]); continue;}
+    if((m=ln.match(/^\s*\d+[.)]\s+(.*)$/))){flushP(); if(!list||list.tag!=='ol'){flushL();list={tag:'ol',items:[]};} list.items.push(m[1]); continue;}
+    flushL(); para.push(ln);
+  }
+  flushP();flushL(); return out.join('');
+}
+
+function demoReply(p){
+  p=p.toLowerCase();
+  if(/cors|origin|подключ|не работает|ошибк|connection|браузер/.test(p))
+    return '### Браузер не пускает запросы\n\nФайл `file://` шлёт `Origin: null`. Разрешите origin и перезапустите сервер:\n\n```bash\nOLLAMA_ORIGINS=* ollama serve\n```\n\n```powershell\n$env:OLLAMA_ORIGINS="*"; ollama serve\n```\n\nПроверка: `curl http://localhost:11434/api/tags` должен вернуть JSON со списком моделей.';
+  if(/установ|install|постав|запуст|ollama|модель|скачать/.test(p))
+    return '### Три шага\n\n```bash\n# 1. рантайм\nbrew install ollama            # macOS\ncurl -fsSL https://ollama.com/install.sh | sh   # Linux\n# Windows — OllamaSetup.exe\n\n# 2. модель\nollama pull qwen3:4b\n\n# 3. доступ для браузера\nOLLAMA_ORIGINS=* ollama serve\n```\n\n| Память | Модель |\n| --- | --- |\n| 8 ГБ | `llama3.2:3b`, `qwen3:4b` |\n| 16 ГБ | `qwen3:8b`, `llama3.1:8b` |\n| GPU 12+ ГБ | `gemma3:12b`, `phi4:14b` |';
+  return 'Я **демо-ответчик**: сервер Ollama пока не отвечает или модель не выбрана.\n\nНажмите «Подключение» → «Проверить». Если список моделей пуст — скачайте её в блоке «Загрузить модель» или командой `ollama pull qwen3:4b`.';
+}
+
+async function probe(){
+  const ep=S.endpoint;
+  $('probeStatus').textContent='Проверка…'; $('probeStatus').style.color='var(--muted)';
+  try{
+    const res=await fetch(ep+'/api/tags',{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    models=Array.isArray(data.models)?data.models:[];
+    setMode('online','LIVE');
+    $('probeStatus').textContent=`Сервер отвечает. ${models.length?models.length+' '+plural(models.length,'модель','модели','моделей'):'моделей нет — скачайте ниже'}`;
+    $('probeStatus').style.color='var(--ok)';
+    if(models.length&&!models.some(m=>m.name===S.model)) S.model=models[0].name;
+    renderModelSelect(); renderModelList(); save();
+    return true;
+  }catch(e){
+    models=[]; setMode('demo','ДЕМО');
+    $('probeStatus').textContent='Не удалось подключиться: '+(e.message||e)+'. Проверьте адрес и CORS (OLLAMA_ORIGINS=*).';
+    $('probeStatus').style.color='var(--danger)';
+    renderModelSelect(); renderModelList();
+    return false;
+  }
+}
+function setMode(s,label){
+  $('statusPill').setAttribute('data-s',s); $('statusText').textContent=label;
+  $('railMode').setAttribute('data-s',s); $('railModeText').textContent=label;
+  S.mode=(s==='online')?'live':'demo';
+}
+async function pullModel(name,onProg,cb){
+  const res=await fetch(S.endpoint+'/api/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,stream:true})});
+  if(!res.ok){ let msg='HTTP '+res.status; try{const j=await res.json(); if(j.error) msg=j.error;}catch(e){} throw new Error(msg); }
+  const reader=res.body.getReader(), dec=new TextDecoder(); let buf='', last='';
+  for(;;){
+    const {done,value}=await reader.read(); if(done) break;
+    buf+=dec.decode(value,{stream:true});
+    let i;
+    while((i=buf.indexOf('\n'))>=0){
+      const line=buf.slice(0,i).trim(); buf=buf.slice(i+1); if(!line) continue;
+      try{
+        const j=JSON.parse(line);
+        if(j.status==='success'){ onProg(100,'готово'); last='success'; }
+        else if(j.completed!=null&&j.total){ onProg(Math.min(99,(j.completed/j.total)*100),`${j.status||'загрузка'} · ${fmtBytes(j.completed)} / ${fmtBytes(j.total)}`); }
+        else if(j.status){ onProg(null,j.status); }
+        if(j.error) throw new Error(j.error);
+      }catch(e){ if(e.message&&!/JSON/.test(e.message)) throw e; }
+    }
+  }
+  cb&&cb();
+}
+async function streamChat(history,onToken,onDone,onError){
+  const ctrl=new AbortController(); aborter=ctrl; stopFlag=false;
+  const payload={model:S.model,messages:history,stream:true,options:{
+    temperature:S.params.temperature,top_p:S.params.top_p,top_k:S.params.top_k,
+    num_predict:S.params.num_predict,repeat_penalty:S.params.repeat_penalty,
+    seed:S.params.seed,num_ctx:parseInt(S.params.num_ctx,10)}};
+  if(S.params.system) payload.system=S.params.system;
+  if(S.params.format) payload.format=S.params.format;
+  try{
+    const res=await fetch(S.endpoint+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:ctrl.signal});
+    if(!res.ok){
+      let msg='HTTP '+res.status;
+      try{ const j=await res.json(); if(j.error) msg=j.error; }catch(e){ try{ const t=await res.text(); if(t) msg=t; }catch(_){}}
+      const err=new Error(msg); err.status=res.status; throw err;
+    }
+    const reader=res.body.getReader(), dec=new TextDecoder();
+    let buf='', full='';
+    for(;;){
+      if(stopFlag){ ctrl.abort(); onDone(full,0,0,true); return; }
+      const {done,value}=await reader.read(); if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      let i;
+      while((i=buf.indexOf('\n'))>=0){
+        const line=buf.slice(0,i).trim(); buf=buf.slice(i+1); if(!line) continue;
+        try{
+          const j=JSON.parse(line);
+          if(j.message&&j.message.content){ full+=j.message.content; onToken(full); }
+          if(j.error) throw new Error(j.error);
+          if(j.done){
+            const tps=j.eval_count/(j.eval_duration/1e9);
+            onDone(full,tps,j.eval_count||0,j.total_duration/1e6,false);
+            return;
+          }
+        }catch(e){ if(e.message&&!/JSON/.test(e.message)) throw e; }
+      }
+    }
+    onDone(full,0,0,0,false);
+  }catch(err){
+    if(err.name==='AbortError') return;
+    onError(err.message||String(err));
+  }
+}
+
+function renderModelSelect(){
+  const sel=$('modelSelect'); sel.innerHTML='';
+  if(!models.length){
+    const o=document.createElement('option'); o.textContent='нет моделей — скачайте'; o.disabled=true; o.selected=true; sel.appendChild(o);
+  } else {
+    models.forEach(m=>{ const o=document.createElement('option'); o.value=m.name; o.textContent=m.name; sel.appendChild(o); });
+    if(!models.some(m=>m.name===S.model)) S.model=models[0].name;
+    sel.value=S.model;
+  }
+  sel.dispatchEvent(new Event('change'));
+}
+function renderModelList(){
+  const host=$('modelList');
+  if(!models.length){ host.innerHTML='<div class="hint">На сервере пока нет ни одной модели. Скачайте её выше или командой <code>ollama pull qwen3:4b</code>.</div>'; }
+  else host.innerHTML=models.map(m=>`<div class="model-row ${m.name===S.model?'current':''}"><div><div class="nm">${esc(m.name)}</div><div class="sub">${esc(m.details&&m.details.parameter_size||'')} · ${esc(m.details&&m.details.quantization_level||'')}</div></div><div style="font-family:var(--font-m);font-size:11px;color:var(--dim)">${fmtBytes(m.size)}</div></div>`).join('');
+  $('footModels').textContent=models.length+' '+plural(models.length,'модель','модели','моделей');
+}
+
+function renderConvos(){
+  const host=$('convos'); host.innerHTML='';
+  S.convos.forEach((c,idx)=>{
+    const last=c.messages[c.messages.length-1];
+    const div=document.createElement('div');
+    div.className='conv'+(c.id===S.activeId?' active':''); div.style.setProperty('--i',idx);
+    div.innerHTML=`
+      <div class="conv-body">
+        <div class="conv-title">${esc(c.title)}</div>
+        <div class="conv-snippet">${esc((last&&last.content||'Нет сообщений').replace(/[#*`>|\n]/g,' ').slice(0,70))}</div>
+        <div class="conv-meta"><span class="tag model">${esc(c.model)}</span><span>${relTime(c.updatedAt)}</span></div>
+      </div>
+      <button class="del-btn" onclick="event.stopPropagation(); deleteConvo('${c.id}')" title="Удалить чат">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M5 6v14a2 2 0 002 2h10a2 2 0 002-2V6"/></svg>
+      </button>
+    `;
+    div.addEventListener('click',()=>{ S.activeId=c.id; save(); renderConvos(); renderThread(); });
+    host.appendChild(div);
+  });
+}
+
+function deleteConvo(id){
+  if(!confirm('Удалить этот чат безвозвратно?')) return;
+  S.convos = S.convos.filter(c => c.id !== id);
+  if(S.activeId === id){
+    if(S.convos.length > 0){
+      S.activeId = S.convos[0].id;
+    } else {
+      const newConv = {id:uid(), title:'Новый чат', model:S.model, createdAt:now(), updatedAt:now(), messages:[]};
+      S.convos.push(newConv);
+      S.activeId = newConv.id;
+    }
+  }
+  save(); renderConvos(); renderThread();
+}
+
+function renderThread(){
+  const conv=active(); if(!conv) return;
+  $('titleText').textContent=conv.title; $('modelPillText').textContent=conv.model;
+  const n=conv.messages.length;
+  $('threadMeta').innerHTML=`<span class="tag model">${esc(conv.model)}</span><span>${n} ${plural(n,'сообщение','сообщения','сообщений')}</span><span>${relTime(conv.updatedAt)}</span>`;
+  const host=$('msgs'); host.innerHTML='';
+  conv.messages.forEach(m=>{
+    const isErr=/^\*\*Ошибка/.test(m.content||'');
+    const div=document.createElement('div');
+    div.className='msg '+(isErr?'err':(m.role==='user'?'user':'assistant'));
+    div.innerHTML=`<div class="avatar">${isErr?'!':(m.role==='user'?'ВЫ':'AI')}</div><div class="bubble"><div class="msg-head"><b>${isErr?'СИСТЕМА':(m.role==='user'?'ВЫ':'МОДЕЛЬ')}</b><span class="badge ${S.mode==='demo'?'demo':'live'}">${S.mode==='demo'?'ДЕМО':'LIVE'}</span></div><div class="md">${md(m.content)}</div>${m.tps?`<div class="stats"><b>${m.tps.toFixed(1)}</b> ток/с · <b>${m.tokens}</b> ток · <b>${(m.ms/1000).toFixed(1)}</b> с</div>`:''}</div>`;
+    host.appendChild(div);
+  });
+  $('threadScroll').scrollTop=$('threadScroll').scrollHeight;
+  const chars=conv.messages.reduce((a,m)=>a+(m.content||'').length,0);
+  $('tokenHint').textContent='≈ '+Math.ceil(chars/3.1)+' токенов в чате';
+  $('footMsgs').textContent=S.convos.reduce((a,c)=>a+c.messages.length,0)+' сообщений';
+}
+function renderFoot(){
+  const size=new Blob([localStorage.getItem(LS)||'']).size;
+  $('storeSize').textContent=fmtBytes(size);
+  $('storeBar').style.width=Math.min(100,size/5e6*100)+'%';
+}
+function addMessage(role,text){
+  const conv=active();
+  const m={id:uid(),role,content:text,ts:now(),model:S.model};
+  conv.messages.push(m); conv.updatedAt=now();
+  if(role==='user'&&conv.messages.filter(x=>x.role==='user').length===1) conv.title=text.slice(0,34)+(text.length>34?'…':'');
+  renderConvos(); renderThread(); save(); return m;
+}
+function patchMessage(id,text,stats){
+  const conv=active(); const m=conv.messages.find(x=>x.id===id); if(!m) return;
+  m.content=text; if(stats){ m.tps=stats[0]; m.tokens=stats[1]; m.ms=stats[2]; }
+  renderThread();
+}
+
+async function doSend(){
+  if(streaming){ stopFlag=true; if(aborter) aborter.abort(); return; }
+  if(pulling) return;
+  const text=$('input').value.trim(); if(!text) return;
+  $('input').value=''; $('input').style.height='auto'; $('send').disabled=true;
+  addMessage('user',text);
+  const conv=active();
+  const ph=addMessage('assistant','');
+  streaming=true;
+  $('send').classList.add('stop'); $('sendIcon').innerHTML='<rect x="6" y="6" width="12" height="12" rx="2"/>';
+  $('composeState').textContent='генерация…';
+
+  const finish=(full,tps,tokens,ms,stopped)=>{
+    streaming=false; stopFlag=false;
+    $('send').classList.remove('stop'); $('sendIcon').innerHTML='<path d="M4 12l16-8-6 8 6 8-16-8z"/>';
+    $('send').disabled=$('input').value.trim()==='';
+    $('composeState').textContent=stopped?'остановлено':'готов';
+    if(!full.trim()) patchMessage(ph.id,'*(пустой ответ — попробуйте перегенерировать)*');
+    else patchMessage(ph.id,full,[tps||0,tokens||0,ms||0]);
+    if(!stopped&&tps){ S.replies++; save(); }
+  };
+
+  if(S.mode!=='live'||!models.length){
+    const reply=demoReply(text); let i=0;
+    const timer=setInterval(()=>{
+      if(stopFlag||i>=reply.length){ clearInterval(timer); finish(stopFlag?reply.slice(0,i):reply,42.5,Math.ceil(i/4),Math.round(i*3)); return; }
+      i+=6; patchMessage(ph.id,reply.slice(0,i)+'<span class="caret"></span>');
+    },16);
+    return;
+  }
+  const history=conv.messages.filter(m=>m.id!==ph.id&&m.role!=='err'&&(m.content||'').trim())
+    .map(m=>({role:m.role,content:m.content}));
+  await streamChat(history,
+    full=>patchMessage(ph.id,full+'<span class="caret"></span>'),
+    finish,
+    msg=>{
+      const hint=/not found|does not exist/i.test(msg)
+        ? '\n\nМодели нет на сервере. Нажмите «Подключение» → «Загрузить модель» или выполните `ollama pull '+S.model+'`.'
+        : '\n\nПроверьте, что сервер запущен с `OLLAMA_ORIGINS=*`.';
+      finish('**Ошибка:** '+escAttr(msg)+hint,0,0,0,false);
+      toast('err','Запрос не прошёл',msg.slice(0,80));
+    });
+}
+
+function init(){
+  document.documentElement.setAttribute('data-theme',S.ui.theme);
+  document.documentElement.setAttribute('data-density',S.ui.density);
+
+  $('endpoint').value=S.endpoint;
+  $('modelSelect').addEventListener('change',e=>{
+    if(!e.target.value) return;
+    S.model=e.target.value; const meta=modelMeta(S.model); const d=meta.details||{};
+    $('mFamily').textContent=d.family||'—'; $('mParams').textContent=d.parameter_size||'—';
+    $('mQuant').textContent=d.quantization_level||'—'; $('mSize').textContent=fmtBytes(meta.size);
+    const conv=active(); if(conv) conv.model=S.model;
+    $('modelPillText').textContent=S.model;
+    renderModelList(); renderConvos(); save();
+  });
+  ['temperature','top_p','num_predict'].forEach(id=>{
+    const el=$(id); el.value=S.params[id];
+    const fmt=v=>id==='num_predict'?String(v):Number(v).toFixed(2);
+    $(id+'Val').textContent=fmt(S.params[id]);
+    el.addEventListener('input',e=>{
+      S.params[id]=parseFloat(e.target.value); $(id+'Val').textContent=fmt(e.target.value);
+      e.target.style.setProperty('--p',((e.target.value-e.target.min)/(e.target.max-e.target.min))*100+'%');
+      save();
+    });
+    el.dispatchEvent(new Event('input'));
+  });
+  $('num_ctx').value=String(S.params.num_ctx);
+  $('num_ctx').addEventListener('change',e=>{S.params.num_ctx=parseInt(e.target.value,10);save();});
+  $('system').value=S.params.system;
+  $('system').addEventListener('input',e=>{S.params.system=e.target.value;save();});
+
+  $('btnTheme').addEventListener('click',()=>{
+    S.ui.theme=S.ui.theme==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',S.ui.theme); save();
+  });
+  $('btnNav').addEventListener('click',()=>document.body.classList.toggle('nav-open'));
+  $('btnSetup').addEventListener('click',()=>{ $('setup').classList.add('on'); $('scrim').classList.add('on'); });
+  $('setupClose').addEventListener('click',()=>{ $('setup').classList.remove('on'); $('scrim').classList.remove('on'); });
+  $('scrim').addEventListener('click',()=>{ $('setup').classList.remove('on'); $('scrim').classList.remove('on'); });
+
+  $('btnProbe').addEventListener('click',probe);
+  $('statusPill').addEventListener('click',()=>{ $('setup').classList.add('on'); $('scrim').classList.add('on'); });
+
+  $('btnPull').addEventListener('click',async()=>{
+    const name=($('pullName').value||'').trim();
+    if(!name){ $('pullStatus').textContent='Введите имя модели, например qwen3:4b'; return; }
+    pulling=true; $('btnPull').disabled=true; $('pullBar').style.width='0';
+    $('pullStatus').textContent='Подключение к /api/pull…';
+    try{
+      await pullModel(name,(pct,txt)=>{
+        if(pct!=null) $('pullBar').style.width=pct+'%';
+        $('pullStatus').textContent=name+' → '+(txt||'…');
+      });
+      $('pullBar').style.width='100%'; $('pullStatus').textContent='Готово: '+name;
+      toast('ok','Модель загружена',name);
+      await probe();
+      if(models.some(m=>m.name===name)){ S.model=name; $('modelSelect').value=name; $('modelSelect').dispatchEvent(new Event('change')); }
+    }catch(e){
+      $('pullStatus').textContent='Ошибка: '+(e.message||e);
+      toast('err','Загрузка не удалась',String(e.message||e).slice(0,80));
+    }finally{ pulling=false; $('btnPull').disabled=false; }
+  });
+
+  $('btnNew').addEventListener('click',()=>{
+    const c={id:uid(),title:'Новый чат',model:S.model,createdAt:now(),updatedAt:now(),messages:[]};
+    S.convos.unshift(c); S.activeId=c.id; save(); renderConvos(); renderThread(); $('input').focus();
+  });
+  $('btnClear').addEventListener('click',()=>{ const c=active(); c.messages=[]; c.updatedAt=now(); save(); renderConvos(); renderThread(); });
+  $('btnRegen').addEventListener('click',()=>{
+    const c=active();
+    while(c.messages.length&&c.messages[c.messages.length-1].role==='assistant') c.messages.pop();
+    const last=c.messages[c.messages.length-1];
+    save(); renderThread();
+    if(last&&last.role==='user'){ $('input').value=last.content; doSend(); }
+  });
+
+  $('msgs').addEventListener('click',e=>{
+    const b=e.target.closest('.code-copy'); if(!b) return;
+    navigator.clipboard.writeText(decodeURIComponent(b.dataset.code||'')).then(()=>{b.textContent='скопировано';setTimeout(()=>b.textContent='копировать',1400);});
+  });
+
+  const inp=$('input');
+  inp.addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,190)+'px'; $('send').disabled=this.value.trim()===''; });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); if(!$('send').disabled||streaming) $('send').click(); } });
+  $('send').addEventListener('click',doSend);
+
+  renderConvos(); renderThread(); renderModelSelect(); renderModelList(); renderFoot();
+  setMode('checking','ПРОВЕРКА…');
+  probe();
+  setInterval(()=>{ if(S.mode==='live') probe(); },60000);
+}
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
